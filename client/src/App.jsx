@@ -9,7 +9,8 @@ const TEST_ACCOUNTS = [
   { username: 'admin', password: 'finance2026' },
   { username: 'analyst', password: 'stock123' },
   { username: 'trader', password: 'trade2026' },
-  // 添加更多测试账号...
+  { username: 'gy001', password: 'coldbrew' },
+  { username: 'gy002', password: 'alejandro330' },
 ]
 
 // API endpoint - use environment variable or fallback to relative path
