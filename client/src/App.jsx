@@ -1,7 +1,116 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, Bot, User, TrendingUp, Shield, Lightbulb, RefreshCw } from 'lucide-react'
+import { Send, Bot, User, TrendingUp, Shield, Lightbulb, RefreshCw, LogOut, Lock, Key } from 'lucide-react'
 import './App.css'
 
+// ============================================
+// 测试账号配置 - 请在此处添加测试账号
+// ============================================
+const TEST_ACCOUNTS = [
+  { username: 'admin', password: 'finance2026' },
+  { username: 'analyst', password: 'stock123' },
+  { username: 'trader', password: 'trade2026' },
+  // 添加更多测试账号...
+]
+
+// API endpoint - use environment variable or fallback to relative path
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
+// ============================================
+// 登录组件
+// ============================================
+function LoginPage({ onLogin }) {
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    setError('')
+    setIsLoading(true)
+
+    // 模拟验证延迟
+    setTimeout(() => {
+      const validAccount = TEST_ACCOUNTS.find(
+        acc => acc.username === username && acc.password === password
+      )
+
+      if (validAccount) {
+        onLogin(username)
+      } else {
+        setError('用户名或密码错误')
+        setIsLoading(false)
+      }
+    }, 500)
+  }
+
+  return (
+    <div className="login-page">
+      <div className="login-card">
+        <div className="login-header">
+          <div className="login-icon">
+            <Lock size={32} />
+          </div>
+          <h1>FinanceMind AI</h1>
+          <p>金融智能问答平台</p>
+        </div>
+
+        <form className="login-form" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="username">用户名</label>
+            <div className="input-wrapper">
+              <User size={18} className="input-icon" />
+              <input
+                id="username"
+                type="text"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="请输入用户名"
+                disabled={isLoading}
+                autoComplete="username"
+              />
+            </div>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="password">密码</label>
+            <div className="input-wrapper">
+              <Key size={18} className="input-icon" />
+              <input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="请输入密码"
+                disabled={isLoading}
+                autoComplete="current-password"
+              />
+            </div>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+
+          <button type="submit" className="login-button" disabled={isLoading || !username || !password}>
+            {isLoading ? '验证中...' : '登录'}
+          </button>
+        </form>
+
+        <div className="login-footer">
+          <p>仅限授权用户访问 · 不开放注册</p>
+        </div>
+      </div>
+
+      {/* Background decorations */}
+      <div className="login-bg-grid" />
+      <div className="login-glow login-glow-1" />
+      <div className="login-glow login-glow-2" />
+    </div>
+  )
+}
+
+// ============================================
+// 示例问题配置
+// ============================================
 const EXAMPLE_QUESTIONS = [
   {
     icon: TrendingUp,
@@ -20,27 +129,23 @@ const EXAMPLE_QUESTIONS = [
   }
 ]
 
-// API endpoint - use environment variable or fallback to relative path
-const API_BASE = import.meta.env.VITE_API_URL || ''
-
-function App() {
+// ============================================
+// 主聊天界面组件
+// ============================================
+function ChatInterface({ username, onLogout }) {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [connectionStatus, setConnectionStatus] = useState('connecting')
   const messagesEndRef = useRef(null)
   const textareaRef = useRef(null)
-  const [connectionStatus, setConnectionStatus] = useState('connecting')
 
   useEffect(() => {
-    // Check server connection
     fetch(`${API_BASE}/api/health`)
       .then(res => {
-        if (res.ok) {
-          setConnectionStatus('online')
-        } else {
-          setConnectionStatus('offline')
-        }
+        if (res.ok) setConnectionStatus('online')
+        else setConnectionStatus('offline')
       })
       .catch(() => setConnectionStatus('offline'))
   }, [])
@@ -70,15 +175,12 @@ function App() {
         body: JSON.stringify({ question: userMessage.content }),
       })
 
-      if (!response.ok) {
-        throw new Error('请求失败，请稍后重试')
-      }
+      if (!response.ok) throw new Error('请求失败，请稍后重试')
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
       let aiContent = ''
 
-      // Add placeholder for AI message
       setMessages(prev => [...prev, { role: 'assistant', content: '' }])
 
       while (true) {
@@ -89,31 +191,23 @@ function App() {
         const lines = chunk.split('\n')
 
         for (const line of lines) {
-          if (line.startsWith('event: ')) {
-            const eventType = line.slice(7).trim()
-            continue
-          }
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6))
               if (data.content !== undefined) {
                 aiContent += data.content
-                // Update the last message (AI response)
                 setMessages(prev => {
                   const updated = [...prev]
                   updated[updated.length - 1] = { role: 'assistant', content: aiContent }
                   return updated
                 })
               }
-            } catch (err) {
-              // Skip malformed JSON
-            }
+            } catch (err) { /* skip */ }
           }
         }
       }
     } catch (err) {
       setError(err.message)
-      // Remove the placeholder message on error
       setMessages(prev => prev.slice(0, -1))
     } finally {
       setIsLoading(false)
@@ -133,44 +227,29 @@ function App() {
   }
 
   const renderMarkdown = (text) => {
-    // Simple markdown rendering
     let html = text
-      // Code blocks
       .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-      // Inline code
       .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // Bold
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-      // Italic
       .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-      // Headers
       .replace(/^### (.+)$/gm, '<h4>$1</h4>')
       .replace(/^## (.+)$/gm, '<h3>$1</h3>')
       .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-      // Lists
       .replace(/^• (.+)$/gm, '<li>$1</li>')
       .replace(/^(\d+)\. (.+)$/gm, '<li>$2</li>')
-      // Line breaks
       .replace(/\n\n/g, '</p><p>')
       .replace(/\n/g, '<br/>')
-
-    // Wrap consecutive list items
-    html = html.replace(/(<li>.*<\/li>)(<br\/>)?/g, (match) => {
-      if (match.includes('<br/>')) {
-        return match
-      }
-      return '<ul>' + match + '</ul>'
-    })
-
+      .replace(/(<li>.*<\/li>)(<br\/>)?/g, (match) => {
+        if (match.includes('<br/>')) return match
+        return '<ul>' + match + '</ul>'
+      })
     return `<p>${html}</p>`
   }
 
   return (
     <div className="app">
-      {/* Background Grid */}
       <div className="bg-grid" />
 
-      {/* Header */}
       <header className="header">
         <div className="header-content">
           <div className="logo">
@@ -186,16 +265,21 @@ function App() {
             </svg>
             <span className="logo-text">FinanceMind AI</span>
           </div>
-          <div className="status">
-            <span className={`status-dot ${connectionStatus}`} />
-            <span className="status-text">
-              {connectionStatus === 'online' ? '在线' : connectionStatus === 'connecting' ? '连接中...' : '离线'}
-            </span>
+          <div className="header-right">
+            <span className="user-badge">{username}</span>
+            <button className="logout-button" onClick={onLogout} title="退出登录">
+              <LogOut size={18} />
+            </button>
+            <div className="status">
+              <span className={`status-dot ${connectionStatus}`} />
+              <span className="status-text">
+                {connectionStatus === 'online' ? '在线' : connectionStatus === 'connecting' ? '连接中...' : '离线'}
+              </span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Chat Area */}
       <main className="chat-area">
         <div className="chat-container">
           {messages.length === 0 ? (
@@ -236,10 +320,7 @@ function App() {
                   </div>
                   <div className="message-content">
                     {message.role === 'assistant' ? (
-                      <div
-                        className="markdown-content"
-                        dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }}
-                      />
+                      <div className="markdown-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(message.content) }} />
                     ) : (
                       <p>{message.content}</p>
                     )}
@@ -254,14 +335,10 @@ function App() {
 
               {isLoading && (
                 <div className="message assistant loading">
-                  <div className="message-avatar">
-                    <Bot size={20} />
-                  </div>
+                  <div className="message-avatar"><Bot size={20} /></div>
                   <div className="message-content">
                     <div className="loading-dots">
-                      <span className="dot" />
-                      <span className="dot" />
-                      <span className="dot" />
+                      <span className="dot" /><span className="dot" /><span className="dot" />
                     </div>
                     <span className="loading-text">正在分析金融数据...</span>
                   </div>
@@ -275,15 +352,12 @@ function App() {
           {error && (
             <div className="error-toast">
               <span>{error}</span>
-              <button onClick={() => setError(null)}>
-                <RefreshCw size={16} />
-              </button>
+              <button onClick={() => setError(null)}><RefreshCw size={16} /></button>
             </div>
           )}
         </div>
       </main>
 
-      {/* Input Area */}
       <footer className="input-area">
         <form className="input-form" onSubmit={handleSubmit}>
           <textarea
@@ -296,20 +370,45 @@ function App() {
             rows={1}
             disabled={isLoading}
           />
-          <button
-            type="submit"
-            className="send-button"
-            disabled={!inputValue.trim() || isLoading}
-          >
+          <button type="submit" className="send-button" disabled={!inputValue.trim() || isLoading}>
             <Send size={20} />
           </button>
         </form>
-        <p className="input-hint">
-          {inputValue.length}/2000 字符 · Enter 发送 · Shift+Enter 换行
-        </p>
+        <p className="input-hint">{inputValue.length}/2000 字符 · Enter 发送 · Shift+Enter 换行</p>
       </footer>
     </div>
   )
+}
+
+// ============================================
+// App 根组件
+// ============================================
+function App() {
+  const [user, setUser] = useState(null)
+
+  // 检查本地存储的登录状态
+  useEffect(() => {
+    const savedUser = localStorage.getItem('financemind_user')
+    if (savedUser) {
+      setUser(savedUser)
+    }
+  }, [])
+
+  const handleLogin = (username) => {
+    localStorage.setItem('financemind_user', username)
+    setUser(username)
+  }
+
+  const handleLogout = () => {
+    localStorage.removeItem('financemind_user')
+    setUser(null)
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />
+  }
+
+  return <ChatInterface username={user} onLogout={handleLogout} />
 }
 
 export default App
