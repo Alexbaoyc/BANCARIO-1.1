@@ -20,6 +20,9 @@ const EXAMPLE_QUESTIONS = [
   }
 ]
 
+// API endpoint - use environment variable or fallback to relative path
+const API_BASE = import.meta.env.VITE_API_URL || ''
+
 function App() {
   const [messages, setMessages] = useState([])
   const [inputValue, setInputValue] = useState('')
@@ -31,7 +34,7 @@ function App() {
 
   useEffect(() => {
     // Check server connection
-    fetch('/api/health')
+    fetch(`${API_BASE}/api/health`)
       .then(res => {
         if (res.ok) {
           setConnectionStatus('online')
@@ -61,7 +64,7 @@ function App() {
     setError(null)
 
     try {
-      const response = await fetch('/api/chat', {
+      const response = await fetch(`${API_BASE}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: userMessage.content }),

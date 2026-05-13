@@ -1,0 +1,15 @@
+{
+  "name": "finance-ai-qa",
+  "version": 2,
+  "builds": [
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": { "distDir": "dist" }
+    }
+  ],
+  "routes": [
+    { "handle": "filesystem" },
+    { "src": "/api/(.*)", "dest": "https://your-backend.vercel.app/api/$1" }
+  ]
+}
